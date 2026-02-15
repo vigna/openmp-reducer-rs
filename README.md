@@ -14,7 +14,7 @@ the cumulative result of the update is important, then it is possible to use a
 local value to each thread, and has a reduction function that merges a local
 value into the global value. As long as the result of multiple reductions is
 independent from the order of the reductions, the final global value is
-deterministic. This pattern works particular well with methods such as like
+deterministic. This pattern works particular well with methods such as
 [Rayon]'s [`for_each_with`], [`map_with`], and so on.
 
 Local updates can be arbitrary: it is responsibility of the caller that they are
@@ -47,4 +47,4 @@ MUR can be held responsible for them.
 [Rayon]: <https://docs.rs/rayon/latest/rayon/>
 [Cilk]: <https://www.opencilk.org/>
 [`fold`]: <https://docs.rs/rayon/1.10.0/rayon/iter/trait.ParallelIterator.html#method.fold>
-[OpenMp]: <https://www.openmp.org/>
+[OpenMP]: <https://www.openmp.org/>

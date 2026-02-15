@@ -7,7 +7,8 @@
 
 #![doc = include_str!("../README.md")]
 
-use std::fmt::Debug;
+use std::fmt::{self, Debug};
+use std::marker::PhantomData;
 use std::sync::Mutex;
 
 /// An OpenMP-style reducer that wraps a global value into a [`Mutex`],
@@ -20,7 +21,8 @@ use std::sync::Mutex;
 ///
 /// For convenience, the global value and the local value have distinct type
 /// parameters `G` and `L`, respectively; the second type defaults to the first
-/// one.
+/// one. The reduction function has type parameter `F`, defaulting to
+/// `fn(&mut G, &L)`.
 ///
 /// Each shared copy has a reference to the [`Reducer`] it was created from, so
 /// you cannot call [`get`](Reducer::get) if there are still shared copies
@@ -34,6 +36,11 @@ use std::sync::Mutex;
 /// assert_eq!(reducer.get(), 3);
 ///```
 ///
+/// # Thread Safety
+///
+/// [`Reducer`] is [`Send`] and [`Sync`] when `G: Send` and `F: Send + Sync`.
+/// [`SharedReducer`] is [`Send`] when additionally `L: Send`.
+///
 /// # Examples
 ///
 /// In this example, we manually spawn processes:
@@ -42,7 +49,7 @@ use std::sync::Mutex;
 /// use openmp_reducer::Reducer;
 /// use std::thread;
 ///
-/// let mut reducer = Reducer::<usize>::new(5, |global, local| *global += *local);
+/// let reducer = Reducer::<usize>::new(5, |global, local| *global += *local);
 /// std::thread::scope(|s| {
 ///     for i in 0..3 {
 ///         let mut shared = reducer.share();
@@ -66,7 +73,7 @@ use std::sync::Mutex;
 /// use openmp_reducer::Reducer;
 /// use rayon::prelude::*;
 ///
-/// let mut reducer = Reducer::<usize>::new(5, |global, local| *global += *local);
+/// let reducer = Reducer::<usize>::new(5, |global, local| *global += *local);
 /// (0..1000000).into_par_iter().
 ///     with_min_len(1000). // optional, might reduce the amount of cloning
 ///     for_each_with(reducer.share(), |shared, i| {
@@ -84,38 +91,38 @@ use std::sync::Mutex;
 /// might perform excessive cloning if jobs are too short, you can use
 /// [`with_min_len`](https://docs.rs/rayon/latest/rayon/iter/trait.ParallelIterator.html#method.with_min_len)
 /// to reduce the amount of cloning.
-#[derive(Debug)]
-pub struct Reducer<G: Debug + Default, L: Debug + Default = G> {
+pub struct Reducer<G, L = G, F = fn(&mut G, &L)> {
     global: Mutex<G>,
-    reduce: fn(&mut G, &L),
+    reduce: F,
+    _marker: PhantomData<fn(L)>,
 }
 
-impl<G: Debug + Default, L: Debug + Default> Reducer<G, L> {
+impl<G: Debug, L, F> Debug for Reducer<G, L, F> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Reducer")
+            .field("global", &self.global)
+            .finish_non_exhaustive()
+    }
+}
+
+impl<G, L, F: Fn(&mut G, &L)> Reducer<G, L, F> {
     /// Creates a new reducer with a given reduction function.
     ///
     /// The function must reduce the local value (second argument) into the
     /// global value (first argument). For the result to be deterministic, the
     /// global value must be the same regardless of the order in which the local
     /// values are reduced.
-    pub fn new(init: G, reduce: fn(global: &mut G, local: &L)) -> Self {
+    pub fn new(init: G, reduce: F) -> Self {
         Reducer {
             global: Mutex::new(init),
             reduce,
+            _marker: PhantomData,
         }
     }
+}
 
-    /// Returns a [`SharedReducer`] referencing this [`Reducer`].
-    ///
-    /// The [`SharedReducer`] will be initialized with the default value of the
-    /// base type.
-    pub fn share(&self) -> SharedReducer<G, L> {
-        SharedReducer {
-            openmp_reducer: self,
-            local: L::default(),
-        }
-    }
-
-    /// Consumes self and return the global value.
+impl<G, L, F> Reducer<G, L, F> {
+    /// Consumes self and returns the global value.
     ///
     /// Note that you cannot call this method if there are still [shared
     /// copies](#method.share) that have not been dropped.
@@ -126,13 +133,25 @@ impl<G: Debug + Default, L: Debug + Default> Reducer<G, L> {
     /// # Panics
     ///
     /// This method will panic if the mutex is poisoned.
-    /// [`peek`](Reducer::peek).
     pub fn get(self) -> G {
         self.global.into_inner().unwrap()
     }
 }
 
-impl<G: Debug + Default + Clone, L: Debug + Default> Reducer<G, L> {
+impl<G, L: Default, F: Fn(&mut G, &L)> Reducer<G, L, F> {
+    /// Returns a [`SharedReducer`] referencing this [`Reducer`].
+    ///
+    /// The [`SharedReducer`] will be initialized with the default value of the
+    /// local type.
+    pub fn share(&self) -> SharedReducer<'_, G, L, F> {
+        SharedReducer {
+            openmp_reducer: self,
+            local: L::default(),
+        }
+    }
+}
+
+impl<G: Clone, L, F> Reducer<G, L, F> {
     /// Returns the current global value.
     ///
     /// Note that this method does not guarantee that all shared copies have
@@ -153,14 +172,23 @@ impl<G: Debug + Default + Clone, L: Debug + Default> Reducer<G, L> {
 /// implementations.
 ///
 /// When a [`SharedReducer`] is dropped, the local value will be reduced into
-/// the global value.
-#[derive(Debug)]
-pub struct SharedReducer<'a, G: Debug + Default, L: Debug + Default> {
-    openmp_reducer: &'a Reducer<G, L>,
+/// the global value. If the mutex is poisoned (e.g., due to a panic in another
+/// thread), the reduction will still be performed on the recovered value.
+pub struct SharedReducer<'a, G, L = G, F: Fn(&mut G, &L) = fn(&mut G, &L)> {
+    openmp_reducer: &'a Reducer<G, L, F>,
     local: L,
 }
 
-impl<G: Debug + Default, L: Debug + Default> Clone for SharedReducer<'_, G, L> {
+impl<G: Debug, L: Debug, F: Fn(&mut G, &L)> Debug for SharedReducer<'_, G, L, F> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SharedReducer")
+            .field("openmp_reducer", &self.openmp_reducer)
+            .field("local", &self.local)
+            .finish()
+    }
+}
+
+impl<G, L: Default, F: Fn(&mut G, &L)> Clone for SharedReducer<'_, G, L, F> {
     /// Returns a copy sharing the same global value and
     /// with local value initialized to the default value.
     fn clone(&self) -> Self {
@@ -171,15 +199,7 @@ impl<G: Debug + Default, L: Debug + Default> Clone for SharedReducer<'_, G, L> {
     }
 }
 
-impl<G: Debug + Default, L: Debug + Default> Drop for SharedReducer<'_, G, L> {
-    /// Reduces the local value into the global value.
-    fn drop(&mut self) {
-        let mut lock = self.openmp_reducer.global.lock().unwrap();
-        (self.openmp_reducer.reduce)(&mut *lock, &self.local);
-    }
-}
-
-impl<G: Debug + Default + Clone, L: Debug + Default> SharedReducer<'_, G, L> {
+impl<G: Clone, L, F: Fn(&mut G, &L)> SharedReducer<'_, G, L, F> {
     /// Returns the current global value.
     ///
     /// This method delegates to [`Reducer::peek`].
@@ -188,14 +208,22 @@ impl<G: Debug + Default + Clone, L: Debug + Default> SharedReducer<'_, G, L> {
     }
 }
 
-impl<G: Debug + Default, L: Debug + Default> AsRef<L> for SharedReducer<'_, G, L> {
+impl<G, L, F: Fn(&mut G, &L)> Drop for SharedReducer<'_, G, L, F> {
+    /// Reduces the local value into the global value.
+    fn drop(&mut self) {
+        let mut lock = self.openmp_reducer.global.lock().unwrap_or_else(|e| e.into_inner());
+        (self.openmp_reducer.reduce)(&mut *lock, &self.local);
+    }
+}
+
+impl<G, L, F: Fn(&mut G, &L)> AsRef<L> for SharedReducer<'_, G, L, F> {
     /// Returns a reference to the local value.
     fn as_ref(&self) -> &L {
         &self.local
     }
 }
 
-impl<G: Debug + Default, L: Debug + Default> AsMut<L> for SharedReducer<'_, G, L> {
+impl<G, L, F: Fn(&mut G, &L)> AsMut<L> for SharedReducer<'_, G, L, F> {
     /// Returns a mutable reference to the local value.
     fn as_mut(&mut self) -> &mut L {
         &mut self.local

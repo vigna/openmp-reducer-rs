@@ -1,7 +1,7 @@
 [package]
 name = "openmp-reducer"
-version = "0.2.3"
-edition = "2021"
+version = "0.2.4"
+edition = "2024"
 description = "OpenMP-style reducers"
 repository = "https://github.com/vigna/openmp-reducer-rs/"
 license = "Apache-2.0 OR LGPL-2.1-or-later"
@@ -11,6 +11,7 @@ authors = [
 	"Tommaso Fontana <tommaso.fontana.96@gmail.com>",
 	"Sebastiano Vigna <sebastiano.vigna@unimi.it>",
 ]
+rust-version = "1.85"
 
 [dev-dependencies]
 rayon = "1.10.0"

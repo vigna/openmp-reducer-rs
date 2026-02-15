@@ -6,9 +6,10 @@
  */
 
 use openmp_reducer::Reducer;
+use std::fmt::Write;
 
 #[test]
-fn test() {
+fn test_share_and_reduce() {
     let reducer = Reducer::new(3, |global, local| *global += *local);
     {
         let mut shared0 = reducer.share();
@@ -34,7 +35,7 @@ fn test_get() {
 
 #[test]
 fn test_two_types() {
-    let reducer = Reducer::new(3, |global, local| *global += *local);
+    let reducer = Reducer::<i64, i32>::new(3, |global, local| *global += *local as i64);
     {
         let mut shared = reducer.share();
         *shared.as_mut() = 5;
@@ -53,4 +54,34 @@ fn test_peek_count() {
         assert_eq!(shared.peek(), 3);
     }
     assert_eq!(reducer.peek(), 8);
+}
+
+#[test]
+fn test_concurrent() {
+    let reducer = Reducer::<usize>::new(0, |global, local| *global += *local);
+    std::thread::scope(|s| {
+        for _ in 0..10 {
+            let mut shared = reducer.share();
+            s.spawn(move || {
+                for _ in 0..1000 {
+                    *shared.as_mut() += 1;
+                }
+            });
+        }
+    });
+    assert_eq!(reducer.get(), 10_000);
+}
+
+#[test]
+fn test_debug() {
+    let reducer = Reducer::<i32>::new(42, |global, local| *global += *local);
+    let shared = reducer.share();
+    let mut buf = String::new();
+    write!(&mut buf, "{:?}", reducer).unwrap();
+    assert!(buf.contains("Reducer"));
+    assert!(buf.contains("42"));
+    buf.clear();
+    write!(&mut buf, "{:?}", shared).unwrap();
+    assert!(buf.contains("SharedReducer"));
+    assert!(buf.contains("local"));
 }

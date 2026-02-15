@@ -1,5 +1,21 @@
 # Change Log
 
+## [0.2.4] - 2026-02-15
+
+### New
+
+* A few `Debug` impls.
+
+### Changed
+
+* 2024 edition, Rust 1.85.
+
+### Improved
+
+* `Reduce` now can take a closure.
+
+* Mutex poisoning is now handled gracefully in `Drop` impl.
+
 ## [0.2.3] - 2025-04-15
 
 ### New
@@ -8,7 +24,7 @@
 
 ### Changed
 
-* Renamed `openmp-reducer` (was `buf-mutex`).
+* Renamed crate from `buf-mutex` to `openmp-reducer`.
 
 ## [0.2.2] - 2025-04-11
 
