@@ -112,7 +112,7 @@ impl<G, L, F: Fn(&mut G, &L)> Reducer<G, L, F> {
     /// global value (first argument). For the result to be deterministic, the
     /// global value must be the same regardless of the order in which the local
     /// values are reduced.
-    pub fn new(init: G, reduce: F) -> Self {
+    pub const fn new(init: G, reduce: F) -> Self {
         Reducer {
             global: Mutex::new(init),
             reduce,
