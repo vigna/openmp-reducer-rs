@@ -211,7 +211,11 @@ impl<G: Clone, L, F: Fn(&mut G, &L)> SharedReducer<'_, G, L, F> {
 impl<G, L, F: Fn(&mut G, &L)> Drop for SharedReducer<'_, G, L, F> {
     /// Reduces the local value into the global value.
     fn drop(&mut self) {
-        let mut lock = self.openmp_reducer.global.lock().unwrap_or_else(|e| e.into_inner());
+        let mut lock = self
+            .openmp_reducer
+            .global
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         (self.openmp_reducer.reduce)(&mut *lock, &self.local);
     }
 }
