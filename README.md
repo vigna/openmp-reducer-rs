@@ -1,11 +1,11 @@
 # OpenMP-Style Reducers
 
-[![Downloads](https://img.shields.io/crates/d/openmp-reducer)](https://crates.io/crates/openmp-reducer)
-[![Dependents](https://img.shields.io/librariesio/dependents/cargo/openmp-reducer)](https://crates.io/crates/openmp-reducer/reverse_dependencies)
-![License](https://img.shields.io/crates/l/openmp-reducer)
-[![Line count](https://tokei.rs/b1/github/vigna/openmp-reducer-rs?type=Rust)](https://github.com/vigna/openmp-reducer-rs)
-[![Latest version](https://img.shields.io/crates/v/openmp-reducer.svg)](https://crates.io/crates/openmp-reducer)
-[![Documentation](https://docs.rs/openmp-reducer/badge.svg)](https://docs.rs/openmp-reducer)
+[![crates.io](https://img.shields.io/crates/v/openmp-reducer.svg)](https://crates.io/crates/openmp-reducer)
+[![docs.rs](https://docs.rs/openmp-reducer/badge.svg)](https://docs.rs/openmp-reducer)
+[![rustc](https://img.shields.io/badge/rustc-1.85+-red.svg)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
+[![CI](https://github.com/vigna/openmp-reducer-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/vigna/openmp-reducer-rs/actions)
+![license](https://img.shields.io/crates/l/openmp-reducer)
+[![downloads](https://img.shields.io/crates/d/openmp-reducer)](https://crates.io/crates/openmp-reducer)
 
 Sometimes, multiple threads need to update a shared value so frequently that the
 overhead of an [atomic] or a [`Mutex`] becomes a bottleneck. If, however, only
