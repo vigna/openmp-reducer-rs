@@ -12,8 +12,9 @@ use std::marker::PhantomData;
 use std::sync::Mutex;
 
 /// An OpenMP-style reducer that wraps a global value into a [`Mutex`],
-/// providing [shareable, cloneable copies with a local value](#method.share);
-/// the copies will be reduced into the global value when dropped.
+/// providing [shareable, cloneable copies with a local
+/// value](Reducer::share); the copies will be reduced into the global value
+/// when dropped.
 ///
 /// The global value can be observed with [`peek`](Reducer::peek) if the base
 /// type is [`Clone`], whereas [`get`](Reducer::get) consumes self and returns
@@ -43,7 +44,7 @@ use std::sync::Mutex;
 ///
 /// # Examples
 ///
-/// In this example, we manually spawn processes:
+/// In this example, we manually spawn threads:
 ///
 /// ```rust
 /// use openmp_reducer::Reducer;
@@ -125,16 +126,16 @@ impl<G, L, F> Reducer<G, L, F> {
     /// Consumes self and returns the global value.
     ///
     /// Note that you cannot call this method if there are still [shared
-    /// copies](#method.share) that have not been dropped.
+    /// copies](Reducer::share) that have not been dropped.
     ///
     /// If you just need to access the global value without consuming self, and
     /// the base type is [`Clone`], use [`peek`](Reducer::peek).
     ///
-    /// # Panics
-    ///
-    /// This method will panic if the mutex is poisoned.
+    /// If the mutex is poisoned (e.g., due to a panic in the reduction
+    /// function), the global value is recovered and returned anyway, mirroring
+    /// the behavior of the [`Drop`] implementation of [`SharedReducer`].
     pub fn get(self) -> G {
-        self.global.into_inner().unwrap()
+        self.global.into_inner().unwrap_or_else(|e| e.into_inner())
     }
 }
 
@@ -157,11 +158,14 @@ impl<G: Clone, L, F> Reducer<G, L, F> {
     /// Note that this method does not guarantee that all shared copies have
     /// been dropped. If you need that guarantee, use [`get`](Reducer::get).
     ///
-    /// # Panics
-    ///
-    /// This method will panic if the mutex is poisoned.
+    /// If the mutex is poisoned (e.g., due to a panic in the reduction
+    /// function), the global value is recovered and returned anyway, mirroring
+    /// the behavior of the [`Drop`] implementation of [`SharedReducer`].
     pub fn peek(&self) -> G {
-        self.global.lock().unwrap().clone()
+        self.global
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 }
 

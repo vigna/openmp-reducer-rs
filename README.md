@@ -14,12 +14,12 @@ the cumulative result of the update is important, then it is possible to use a
 local value to each thread, and has a reduction function that merges a local
 value into the global value. As long as the result of multiple reductions is
 independent from the order of the reductions, the final global value is
-deterministic. This pattern works particular well with methods such as
+deterministic. This pattern works particularly well with methods such as
 [Rayon]'s [`for_each_with`], [`map_with`], and so on.
 
-Local updates can be arbitrary: it is responsibility of the caller that they are
-compatible with the reduction function. Moreover, in some cases the global
-result is just “mostly”  (e.g., floats) independent from the order of the
+Local updates can be arbitrary: it is the responsibility of the caller that
+they are compatible with the reduction function. Moreover, in some cases the
+global result is just “mostly” (e.g., floats) independent from the order of the
 reductions, and the programmer is responsible for keeping the differences due to
 nondeterminism within acceptable limits.
 
@@ -34,7 +34,7 @@ above you can use a [`Reducer`] instead.
 ## Acknowledgments
 
 This software has been partially supported by project SERICS (PE00000014) under
-the NRRP MUR program funded by the EU - NGEU. values and opinions expressed are
+the NRRP MUR program funded by the EU - NGEU. Views and opinions expressed are
 however those of the authors only and do not necessarily reflect those of the
 European Union or the Italian MUR. Neither the European Union nor the Italian
 MUR can be held responsible for them.

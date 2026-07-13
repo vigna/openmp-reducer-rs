@@ -1,5 +1,17 @@
 # Change Log
 
+## [0.2.5] - 2026-07-13
+
+### Improved
+
+* `get` and `peek` now recover gracefully from mutex poisoning, mirroring the
+  behavior of the `Drop` implementation of `SharedReducer`; they no longer
+  panic.
+
+### Fixed
+
+* Typos in the API documentation and in `README.md`.
+
 ## [0.2.4] - 2026-02-15
 
 ### New

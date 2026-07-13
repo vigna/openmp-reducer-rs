@@ -73,6 +73,30 @@ fn test_concurrent() {
 }
 
 #[test]
+fn test_poisoned() {
+    let reducer = Reducer::<usize>::new(3, |global, local| {
+        if *local == 999 {
+            panic!("poisoning the mutex");
+        }
+        *global += *local;
+    });
+    // A panic in the reduction function during drop poisons the mutex.
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut shared = reducer.share();
+        *shared.as_mut() = 999;
+    }));
+    assert!(result.is_err());
+    // Drop recovers from poisoning and still reduces.
+    {
+        let mut shared = reducer.share();
+        *shared.as_mut() = 5;
+    }
+    // peek and get recover from poisoning as well.
+    assert_eq!(reducer.peek(), 8);
+    assert_eq!(reducer.get(), 8);
+}
+
+#[test]
 fn test_debug() {
     let reducer = Reducer::<i32>::new(42, |global, local| *global += *local);
     let shared = reducer.share();

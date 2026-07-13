@@ -1,6 +1,6 @@
 [package]
 name = "openmp-reducer"
-version = "0.2.4"
+version = "0.2.5"
 edition = "2024"
 description = "OpenMP-style reducers"
 repository = "https://github.com/vigna/openmp-reducer-rs"

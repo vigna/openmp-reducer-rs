@@ -17,9 +17,20 @@ jobs:
       - name: Check formatting
         run: cargo fmt -- --check
       - name: Run clippy
-        run: cargo clippy -- -D warnings
+        run: cargo clippy --all-features --all-targets -- -D warnings
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo test --all-features --all-targets --verbose
+      - name: Run doctests
+        run: cargo test --all-features --doc --verbose
+
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install MSRV toolchain
+        uses: dtolnay/rust-toolchain@1.85
+      - name: Check (MSRV)
+        run: cargo check --all-features --all-targets
 
   build-i686:
     runs-on: ubuntu-latest
